@@ -1,4 +1,5 @@
 <?php
+
 namespace TYPO3\FluidSchemaGenerator;
 
 /*
@@ -15,33 +16,40 @@ class SchemaGenerator
      * @var DocCommentParser
      */
     protected $docCommentParser;
+    private $containsPHPClasses = [];
+    private $schemaFilePath = '';
+    private $namespaceFilePath = '';
 
     /**
      * Constructor
+     * @param string $schemaFilePath Path where generateXsd() writes the schema.xsd file to
+     * @param string $namespaceFilePath Path where generatePhpNamespaceXSD() writes the phpNamespace.xsd file to
      */
-    public function __construct()
+    public function __construct($schemaFilePath, $namespaceFilePath)
     {
         $this->docCommentParser = new DocCommentParser();
+        $this->schemaFilePath = $schemaFilePath;
+        $this->namespaceFilePath = $namespaceFilePath;
     }
 
     /**
      * Generate the XML Schema definition for a given namespace.
      * It will generate an XSD file for all view helpers in this namespace.
      * The first provided namespace is used when determining the XSD
-     * namespace URL that gets recored in the output schema.
+     * namespace URL that gets recorded in the output schema.
      *
      * Map must be an array of ["php\namespace" => "src/ViewHelpers"]
      * values, e.g. an array of class paths indexed by namespace.
      *
      * @param array $namespaceClassPathMap A map of phpNamespace=>directory, whose paths get scanned.
      * @param \Closure|null $classInstancingClosure Optional closure which loads a class. See the default closure for requirements.
-     * @return string
+     * @return void
      * @throws \Exception
      */
     public function generateXsd(array $namespaceClassPathMap, \Closure $classInstancingClosure = null)
     {
         if (!$classInstancingClosure) {
-            $classInstancingClosure = function($className, ...$arguments) {
+            $classInstancingClosure = function ($className, ...$arguments) {
                 return new $className(...$arguments);
             };
         }
@@ -72,7 +80,32 @@ class SchemaGenerator
                 $xmlRootNode
             );
         }
-        return $xmlRootNode->asXML();
+        if ($this->containsPHPClasses !== []) {
+            $importNode = $xmlRootNode->addChild('xsd:import');
+            $importNode->addAttribute('schemaLocation', 'phpNamespace.xsd');
+            $importNode->addAttribute('namespace', 'php/types');
+            $xmlRootNode->addAttribute('xmlns:xmlns:php', 'php/types');
+            $this->generatePhpNamespaceXSD();
+        }
+        $xmlRootNode->asXML($this->schemaFilePath);
+    }
+
+    protected function generatePhpNamespaceXSD()
+    {
+        $xmlRootNode = new \SimpleXMLElement(
+            '<?xml version="1.0" encoding="UTF-8"?>
+			<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+				        targetNamespace="php/types"
+				        elementFormDefault="qualified">
+			</xsd:schema>');
+
+        foreach ($this->containsPHPClasses as $typeName) {
+            $type = $xmlRootNode->addChild('xsd:simpleType');
+            $type->addAttribute('name', $typeName);
+            $restriction = $type->addChild('xsd:restriction');
+            $restriction->addAttribute('base', 'xsd:string');
+        }
+        $xmlRootNode->asXML($this->namespaceFilePath);
     }
 
     /**
@@ -172,6 +205,10 @@ class SchemaGenerator
      */
     protected function convertPhpTypeToXsdType($type)
     {
+        if (class_exists($type) || interface_exists($type)) {
+            $this->containsPHPClasses[] = $type;
+            return "php:$type";
+        }
         switch ($type) {
             case 'integer':
                 return 'xsd:integer';

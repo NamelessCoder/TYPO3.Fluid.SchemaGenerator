@@ -21,7 +21,7 @@ class SchemaGeneratorTest extends TestCase
      */
     public function docCommentParserIsInjected()
     {
-        $instance = new SchemaGenerator();
+        $instance = new SchemaGenerator(__DIR__ . '/../Generated/schema.xsd', __DIR__ . '/../Generated/phpNamespace.xsd');
         $this->assertAttributeInstanceOf(DocCommentParser::class, 'docCommentParser', $instance);
     }
 
@@ -46,7 +46,7 @@ class SchemaGeneratorTest extends TestCase
      */
     public function getTagNameForClassReturnsExpectedTag($class, $expected)
     {
-        $instance = new SchemaGenerator();
+        $instance = new SchemaGenerator(__DIR__ . '/../Generated/schema.xsd', __DIR__ . '/../Generated/phpNamespace.xsd');
         $result = $this->callInaccessibleMethod($instance, 'getTagNameForClass', $class);
         $this->assertEquals($expected, $result);
     }
@@ -54,11 +54,11 @@ class SchemaGeneratorTest extends TestCase
     /**
      * @test
      */
-    public function generateXsdThrowsRuntimeExceptionIfNoViewHeplerIsFound()
+    public function generateXsdThrowsRuntimeExceptionIfNoViewHelperIsFound()
     {
-        $service = $this->getMockBuilder(SchemaGenerator::class)->setMethods(['dummy'])->getMock();
+        $instance = new SchemaGenerator(__DIR__ . '/../Generated/schema.xsd', __DIR__ . '/../Generated/phpNamespace.xsd');
         $this->expectException(\RuntimeException::class);
-        $service->generateXsd(['TYPO3Fluid\\SchemaGenerator']);
+        $instance->generateXsd(['TYPO3Fluid\\SchemaGenerator']);
     }
 
     /**
@@ -86,7 +86,7 @@ class SchemaGeneratorTest extends TestCase
      */
     public function convertPhpTypeToXsdTypeReturnsExpectedType($input, $expected)
     {
-        $instance = new SchemaGenerator();
+        $instance = new SchemaGenerator(__DIR__ . '/../Generated/schema.xsd', __DIR__ . '/../Generated/phpNamespace.xsd');
         $result = $this->callInaccessibleMethod($instance, 'convertPhpTypeToXsdType', $input);
         $this->assertEquals($expected, $result);
     }
